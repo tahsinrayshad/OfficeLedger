@@ -1,0 +1,197 @@
+import User, { IUserDocument } from '@/models/Users';
+import { connectDB } from '@/utils/db';
+import { hashPassword, generateToken, comparePassword } from '@/utils/auth';
+
+/**
+ * AuthController
+ * Handles authentication related operations
+ */
+export class AuthController {
+  /**
+   * Signup function
+   * Creates a new user account with the provided credentials
+   * 
+   * @param fullName - User's full name
+   * @param email - User's email address
+   * @param phone - User's phone number
+   * @param password - User's password (will be hashed before storage)
+   * @param dob - User's date of birth
+   * @param isFundManager - Whether user is a fund manager
+   * @param isFoodManager - Whether user is a food manager
+   * @returns Promise<{user: IUserDocument, token: string}> - The created user object and JWT token
+   * @throws Error if validation fails or user already exists
+   */
+  async signup(
+    fullName: string,
+    email: string,
+    phone: string,
+    password: string,
+    dob: Date,
+    isFundManager: boolean = false,
+    isFoodManager: boolean = false
+  ): Promise<{ user: IUserDocument; token: string }> {
+    // Validate inputs
+    this.validateSignupInputs(fullName, email, phone, password, dob);
+
+    // Connect to database
+    await connectDB();
+
+    // Check if user with this email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    // Hash the password
+    const hashedPassword = await hashPassword(password);
+
+    // Create new user in database
+    const newUser = await User.create({
+      fullName,
+      email,
+      phone,
+      password: hashedPassword,
+      dob,
+      isFundManager,
+      isFoodManager,
+      isActive: true, // isActive defaults to true for new users
+    });
+
+    // Generate JWT token
+    const token = generateToken(newUser._id.toString(), newUser.email);
+
+    return { user: newUser, token };
+  }
+
+  /**
+   * Signin function
+   * Authenticates a user with email and password
+   * 
+   * @param email - User's email address
+   * @param password - User's password
+   * @returns Promise<{user: IUserDocument, token: string}> - The authenticated user object and JWT token
+   * @throws Error if validation fails or credentials are invalid
+   */
+  async signin(
+    email: string,
+    password: string
+  ): Promise<{ user: IUserDocument; token: string }> {
+    // Validate inputs
+    if (!email || !this.isValidEmail(email)) {
+      throw new Error('Valid email is required');
+    }
+
+    if (!password) {
+      throw new Error('Password is required');
+    }
+
+    // Connect to database
+    await connectDB();
+
+    // Find user by email and include password field (since it's set to select: false by default)
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new Error('User account is inactive');
+    }
+
+    // Compare password
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error('Invalid password');
+    }
+
+    // Generate JWT token
+    const token = generateToken(user._id.toString(), user.email);
+
+    return { user, token };
+  }
+
+  /**
+   * Validate signup input data
+   * 
+   * @param fullName - User's full name
+   * @param email - User's email address
+   * @param phone - User's phone number
+   * @param password - User's password
+   * @param dob - User's date of birth
+   * @throws Error if any validation fails
+   */
+  private validateSignupInputs(
+    fullName: string,
+    email: string,
+    phone: string,
+    password: string,
+    dob: Date
+  ): void {
+    if (!fullName || fullName.trim().length === 0) {
+      throw new Error('Full name is required');
+    }
+
+    if (!email || !this.isValidEmail(email)) {
+      throw new Error('Valid email is required');
+    }
+
+    if (!phone || !this.isValidPhone(phone)) {
+      throw new Error('Valid phone number is required');
+    }
+
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters long');
+    }
+
+    if (!dob || !(dob instanceof Date)) {
+      throw new Error('Valid date of birth is required');
+    }
+
+    // Check if user is at least 18 years old
+    const age = this.calculateAge(dob);
+    if (age < 18) {
+      throw new Error('User must be at least 18 years old');
+    }
+  }
+
+  /**
+   * Validate email format
+   * 
+   * @param email - Email address to validate
+   * @returns boolean - True if email is valid
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Validate phone number format
+   * 
+   * @param phone - Phone number to validate
+   * @returns boolean - True if phone is valid
+   */
+  private isValidPhone(phone: string): boolean {
+    const phoneRegex = /^[0-9\-\+\(\)\s]{10,}$/;
+    return phoneRegex.test(phone);
+  }
+
+  /**
+   * Calculate age from date of birth
+   * 
+   * @param dob - Date of birth
+   * @returns number - Age in years
+   */
+  private calculateAge(dob: Date): number {
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+
+    return age;
+  }
+}
