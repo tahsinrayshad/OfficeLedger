@@ -9,6 +9,7 @@ export interface IUserDocument extends Document {
   isFundManager: boolean;
   isFoodManager: boolean;
   isActive: boolean;
+  team?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +55,10 @@ const userSchema = new Schema<IUserDocument>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    team: {
+      type: String,
+      trim: true,
     },
   },
   {

@@ -4,7 +4,7 @@ import { AuthController } from '@/controllers/AuthController';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fullName, email, phone, password, dob, isFundManager, isFoodManager } = body;
+    const { fullName, email, phone, password, dob, isFundManager, isFoodManager, team } = body;
 
     // Validate required fields
     if (!fullName || !email || !phone || !password || !dob) {
@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       password,
       new Date(dob),
       isFundManager || false,
-      isFoodManager || false
+      isFoodManager || false,
+      team
     );
 
     return NextResponse.json(

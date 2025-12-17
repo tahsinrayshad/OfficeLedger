@@ -28,7 +28,8 @@ export class AuthController {
     password: string,
     dob: Date,
     isFundManager: boolean = false,
-    isFoodManager: boolean = false
+    isFoodManager: boolean = false,
+    team?: string
   ): Promise<{ user: IUserDocument; token: string }> {
     // Validate inputs
     this.validateSignupInputs(fullName, email, phone, password, dob);
@@ -54,6 +55,7 @@ export class AuthController {
       dob,
       isFundManager,
       isFoodManager,
+      team: team || '',
       isActive: true, // isActive defaults to true for new users
     });
 
@@ -109,6 +111,64 @@ export class AuthController {
     const token = generateToken(user._id.toString(), user.email);
 
     return { user, token };
+  }
+
+  /**
+   * Update user profile
+   * Users can update their own profile, fund managers can update any user
+   * 
+   * @param userId - User ID of the person making the request
+   * @param targetUserId - User ID of the user to update
+   * @param updateData - Data to update
+   * @returns Promise<IUserDocument> - The updated user object
+   * @throws Error if user doesn't have permission or user not found
+   */
+  async updateUser(
+    userId: string,
+    targetUserId: string,
+    updateData: Partial<IUserDocument>
+  ): Promise<IUserDocument | null> {
+    // Connect to database
+    await connectDB();
+
+    // Check if user is trying to update their own profile or is a fund manager
+    if (userId !== targetUserId) {
+      const requestingUser = await User.findById(userId);
+      if (!requestingUser || !requestingUser.isFundManager) {
+        throw new Error('You can only update your own profile');
+      }
+    }
+
+    // Find user to update
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Validate email if being updated
+    if (updateData.email && updateData.email !== user.email) {
+      const existingUser = await User.findOne({ email: updateData.email });
+      if (existingUser) {
+        throw new Error('Email is already in use');
+      }
+    }
+
+    // Update allowed fields
+    if (updateData.fullName) user.fullName = updateData.fullName;
+    if (updateData.email) user.email = updateData.email;
+    if (updateData.phone) user.phone = updateData.phone;
+    if (updateData.team !== undefined) user.team = updateData.team;
+
+    // Only fund managers can update these fields
+    const requestingUser = await User.findById(userId);
+    if (requestingUser?.isFundManager) {
+      if (updateData.isFundManager !== undefined) user.isFundManager = updateData.isFundManager;
+      if (updateData.isFoodManager !== undefined) user.isFoodManager = updateData.isFoodManager;
+      if (updateData.isActive !== undefined) user.isActive = updateData.isActive;
+    }
+
+    await user.save();
+    return user;
   }
 
   /**
