@@ -18,6 +18,7 @@ export class AuthController {
    * @param dob - User's date of birth
    * @param isFundManager - Whether user is a fund manager
    * @param isFoodManager - Whether user is a food manager
+   * @param isTeamLead - Whether user is a team lead
    * @returns Promise<{user: IUserDocument, token: string}> - The created user object and JWT token
    * @throws Error if validation fails or user already exists
    */
@@ -29,6 +30,7 @@ export class AuthController {
     dob: Date,
     isFundManager: boolean = false,
     isFoodManager: boolean = false,
+    isTeamLead: boolean = false,
     team?: string
   ): Promise<{ user: IUserDocument; token: string }> {
     // Validate inputs
@@ -55,6 +57,7 @@ export class AuthController {
       dob,
       isFundManager,
       isFoodManager,
+      isTeamLead,
       team: team || '',
       isActive: true, // isActive defaults to true for new users
     });
@@ -164,6 +167,7 @@ export class AuthController {
     if (requestingUser?.isFundManager) {
       if (updateData.isFundManager !== undefined) user.isFundManager = updateData.isFundManager;
       if (updateData.isFoodManager !== undefined) user.isFoodManager = updateData.isFoodManager;
+      if (updateData.isTeamLead !== undefined) user.isTeamLead = updateData.isTeamLead;
       if (updateData.isActive !== undefined) user.isActive = updateData.isActive;
     }
 
@@ -402,6 +406,53 @@ export class AuthController {
         success: true,
         message: 'Password reset successfully',
         statusCode: 200,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: 500,
+      };
+    }
+  }
+
+  /**
+   * Get current logged in user info
+   * 
+   * @param userId - User ID from JWT token
+   * @returns Promise<{success: boolean, message: string, statusCode: number, data?: object}>
+   */
+  async getCurrentUser(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    statusCode: number;
+    data?: IUserDocument;
+  }> {
+    try {
+      if (!userId) {
+        return {
+          success: false,
+          message: 'User ID is required',
+          statusCode: 400,
+        };
+      }
+
+      await connectDB();
+
+      const user = await User.findById(userId).select('-password');
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+          statusCode: 404,
+        };
+      }
+
+      return {
+        success: true,
+        message: 'User information retrieved successfully',
+        statusCode: 200,
+        data: user,
       };
     } catch (error) {
       return {

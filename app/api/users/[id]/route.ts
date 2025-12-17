@@ -49,6 +49,7 @@ export async function PUT(
           team: updatedUser.team,
           isFundManager: updatedUser.isFundManager,
           isFoodManager: updatedUser.isFoodManager,
+          isTeamLead: updatedUser.isTeamLead,
           isActive: updatedUser.isActive,
         },
       },

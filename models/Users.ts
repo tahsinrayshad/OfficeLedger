@@ -8,6 +8,7 @@ export interface IUserDocument extends Document {
   dob: Date;
   isFundManager: boolean;
   isFoodManager: boolean;
+  isTeamLead: boolean;
   isActive: boolean;
   team?: string;
   resetToken?: string;
@@ -51,6 +52,10 @@ const userSchema = new Schema<IUserDocument>(
       default: false,
     },
     isFoodManager: {
+      type: Boolean,
+      default: false,
+    },
+    isTeamLead: {
       type: Boolean,
       default: false,
     },
