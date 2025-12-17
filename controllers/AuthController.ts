@@ -254,4 +254,161 @@ export class AuthController {
 
     return age;
   }
+
+  /**
+   * Request password reset
+   * Generates a reset token and stores it with expiry
+   * 
+   * @param email - User's email address
+   * @returns Promise<{success: boolean, message: string, statusCode: number}>
+   */
+  async requestPasswordReset(email: string): Promise<{
+    success: boolean;
+    message: string;
+    statusCode: number;
+    data?: { resetToken: string; expiresIn: string };
+  }> {
+    try {
+      if (!email || !this.isValidEmail(email)) {
+        return {
+          success: false,
+          message: 'Valid email is required',
+          statusCode: 400,
+        };
+      }
+
+      await connectDB();
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return {
+          success: false,
+          message: 'User with this email not found',
+          statusCode: 404,
+        };
+      }
+
+      // Generate reset token (random 32 character string)
+      const resetToken = Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
+
+      // Set token expiry to 1 hour from now
+      const expiryTime = new Date(Date.now() + 3600000);
+
+      // Update user with reset token and expiry
+      user.resetToken = resetToken;
+      user.resetTokenExpiry = expiryTime;
+      await user.save();
+
+      return {
+        success: true,
+        message: 'Password reset token generated successfully',
+        statusCode: 200,
+        data: {
+          resetToken,
+          expiresIn: '1 hour',
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: 500,
+      };
+    }
+  }
+
+  /**
+   * Reset password using reset token
+   * Validates token and updates password
+   * 
+   * @param email - User's email address
+   * @param resetToken - Reset token from password reset request
+   * @param newPassword - New password
+   * @returns Promise<{success: boolean, message: string, statusCode: number}>
+   */
+  async resetPassword(
+    email: string,
+    resetToken: string,
+    newPassword: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    statusCode: number;
+  }> {
+    try {
+      if (!email || !this.isValidEmail(email)) {
+        return {
+          success: false,
+          message: 'Valid email is required',
+          statusCode: 400,
+        };
+      }
+
+      if (!resetToken || resetToken.trim() === '') {
+        return {
+          success: false,
+          message: 'Reset token is required',
+          statusCode: 400,
+        };
+      }
+
+      if (!newPassword || newPassword.length < 8) {
+        return {
+          success: false,
+          message: 'Password must be at least 8 characters long',
+          statusCode: 400,
+        };
+      }
+
+      await connectDB();
+
+      const user = await User.findOne({ email }).select('+resetToken +resetTokenExpiry');
+      if (!user) {
+        return {
+          success: false,
+          message: 'User with this email not found',
+          statusCode: 404,
+        };
+      }
+
+      // Check if reset token is valid and not expired
+      if (!user.resetToken || user.resetToken !== resetToken) {
+        return {
+          success: false,
+          message: 'Invalid reset token',
+          statusCode: 400,
+        };
+      }
+
+      if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+        return {
+          success: false,
+          message: 'Reset token has expired',
+          statusCode: 400,
+        };
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update user with new password and clear reset token
+      user.password = hashedPassword;
+      user.resetToken = undefined;
+      user.resetTokenExpiry = undefined;
+      await user.save();
+
+      return {
+        success: true,
+        message: 'Password reset successfully',
+        statusCode: 200,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: 500,
+      };
+    }
+  }
 }

@@ -10,6 +10,8 @@ export interface IUserDocument extends Document {
   isFoodManager: boolean;
   isActive: boolean;
   team?: string;
+  resetToken?: string;
+  resetTokenExpiry?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +61,14 @@ const userSchema = new Schema<IUserDocument>(
     team: {
       type: String,
       trim: true,
+    },
+    resetToken: {
+      type: String,
+      select: false,
+    },
+    resetTokenExpiry: {
+      type: Date,
+      select: false,
     },
   },
   {
