@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RuleViolationController } from '@/controllers/RuleViolationController';
-import { withAuth, createUnauthorizedResponse } from '@/utils/middleware';
+import { withAuth, createUnauthorizedResponse, getUserTeamId } from '@/utils/middleware';
 import User from '@/models/Users';
 import Rules from '@/models/Rules';
 import { connectDB } from '@/utils/db';
@@ -19,6 +19,15 @@ export async function GET(
       return createUnauthorizedResponse(auth.message);
     }
 
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
     const violationId = id;
 
@@ -29,7 +38,7 @@ export async function GET(
       );
     }
 
-    const violation = await ruleViolationController.getViolationById(violationId);
+    const violation = await ruleViolationController.getViolationById(violationId, teamId);
 
     if (!violation) {
       return NextResponse.json(
@@ -84,6 +93,15 @@ export async function PUT(
       return createUnauthorizedResponse(auth.message);
     }
 
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
     const violationId = id;
     const body = await request.json();
@@ -98,6 +116,7 @@ export async function PUT(
 
     const updatedViolation = await ruleViolationController.updateViolation(
       auth.userId,
+      teamId,
       violationId,
       updateData
     );
@@ -155,6 +174,15 @@ export async function DELETE(
       return createUnauthorizedResponse(auth.message);
     }
 
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
     const violationId = id;
 
@@ -167,6 +195,7 @@ export async function DELETE(
 
     const deletedViolation = await ruleViolationController.deleteViolation(
       auth.userId,
+      teamId,
       violationId
     );
 

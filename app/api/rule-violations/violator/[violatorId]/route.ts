@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RuleViolationController } from '@/controllers/RuleViolationController';
-import { withAuth, createUnauthorizedResponse } from '@/utils/middleware';
+import { withAuth, createUnauthorizedResponse, getUserTeamId } from '@/utils/middleware';
 import User from '@/models/Users';
 import Rules from '@/models/Rules';
 import { connectDB } from '@/utils/db';
@@ -19,6 +19,15 @@ export async function GET(
       return createUnauthorizedResponse(auth.message);
     }
 
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { violatorId } = await params;
 
     if (!violatorId) {
@@ -28,7 +37,7 @@ export async function GET(
       );
     }
 
-    const violations = await ruleViolationController.getViolationsByViolator(violatorId);
+    const violations = await ruleViolationController.getViolationsByViolator(violatorId, teamId);
 
     // Fetch violator data
     await connectDB();

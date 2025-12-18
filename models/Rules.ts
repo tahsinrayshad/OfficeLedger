@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IRulesDocument extends Document {
+  teamId: string;
   title: string;
   amount: number;
   description?: string;
@@ -10,11 +11,15 @@ export interface IRulesDocument extends Document {
 
 const rulesSchema = new Schema<IRulesDocument>(
   {
+    teamId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     title: {
       type: String,
       required: [true, 'Title is required'],
       trim: true,
-      unique: true,
     },
     amount: {
       type: Number,

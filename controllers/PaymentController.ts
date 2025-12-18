@@ -3,6 +3,7 @@ import Payment from '@/models/Payment';
 import User from '@/models/Users';
 
 export async function addPayment(
+  teamId: string,
   payedBy: string,
   amount: number,
   date?: Date,
@@ -31,6 +32,7 @@ export async function addPayment(
     }
 
     const payment = new Payment({
+      teamId,
       payedBy,
       amount,
       date: date || new Date(),
@@ -60,11 +62,11 @@ export async function addPayment(
   }
 }
 
-export async function getAllPayments() {
+export async function getAllPayments(teamId: string) {
   try {
     await connectDB();
 
-    const payments = await Payment.find().lean();
+    const payments = await Payment.find({ teamId }).lean();
 
     // Enrich with user data
     const enrichedPayments = await Promise.all(
@@ -92,11 +94,11 @@ export async function getAllPayments() {
   }
 }
 
-export async function getPaymentById(paymentId: string) {
+export async function getPaymentById(paymentId: string, teamId: string) {
   try {
     await connectDB();
 
-    const payment = await Payment.findById(paymentId).lean();
+    const payment = await Payment.findOne({ _id: paymentId, teamId }).lean();
     if (!payment) {
       return {
         success: false,
@@ -126,7 +128,7 @@ export async function getPaymentById(paymentId: string) {
   }
 }
 
-export async function getPaymentsByUser(userId: string) {
+export async function getPaymentsByUser(userId: string, teamId: string) {
   try {
     await connectDB();
 
@@ -140,7 +142,7 @@ export async function getPaymentsByUser(userId: string) {
       };
     }
 
-    const payments = await Payment.find({ payedBy: userId });
+    const payments = await Payment.find({ payedBy: userId, teamId });
 
     // Enrich with user data
     const enrichedPayments = await Promise.all(
@@ -170,6 +172,7 @@ export async function getPaymentsByUser(userId: string) {
 
 export async function updatePayment(
   paymentId: string,
+  teamId: string,
   amount?: number,
   date?: Date,
   note?: string
@@ -177,7 +180,7 @@ export async function updatePayment(
   try {
     await connectDB();
 
-    const payment = await Payment.findById(paymentId);
+    const payment = await Payment.findOne({ _id: paymentId, teamId });
     if (!payment) {
       return {
         success: false,
@@ -223,11 +226,11 @@ export async function updatePayment(
   }
 }
 
-export async function deletePayment(paymentId: string) {
+export async function deletePayment(paymentId: string, teamId: string) {
   try {
     await connectDB();
 
-    const payment = await Payment.findByIdAndDelete(paymentId).lean();
+    const payment = await Payment.findOneAndDelete({ _id: paymentId, teamId }).lean();
     if (!payment) {
       return {
         success: false,

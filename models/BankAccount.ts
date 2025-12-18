@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IBankAccountDocument extends Document {
+  teamId: string;
   userId: string;
   bankName: string;
   branch: string;
@@ -13,6 +14,11 @@ export interface IBankAccountDocument extends Document {
 
 const bankAccountSchema = new Schema(
   {
+    teamId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     userId: {
       type: String,
       required: true,
@@ -32,7 +38,6 @@ const bankAccountSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true,
     },
     accountTitle: {
       type: String,

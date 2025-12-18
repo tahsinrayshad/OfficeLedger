@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RuleViolationController } from '@/controllers/RuleViolationController';
-import { withAuth, createUnauthorizedResponse } from '@/utils/middleware';
+import { withAuth, createUnauthorizedResponse, getUserTeamId } from '@/utils/middleware';
 import User from '@/models/Users';
 import Rules from '@/models/Rules';
 import { connectDB } from '@/utils/db';
@@ -16,7 +16,16 @@ export async function GET(request: NextRequest) {
       return createUnauthorizedResponse(auth.message);
     }
 
-    const violations = await ruleViolationController.getAllViolations();
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
+    const violations = await ruleViolationController.getAllViolations(teamId);
 
     // Fetch violator and rule data for each violation
     await connectDB();
@@ -68,6 +77,15 @@ export async function POST(request: NextRequest) {
       return createUnauthorizedResponse(auth.message);
     }
 
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { error: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { violatorId, ruleId, additionalAmount, date, note } = body;
 
@@ -81,6 +99,7 @@ export async function POST(request: NextRequest) {
 
     const newViolation = await ruleViolationController.addViolation(
       auth.userId,
+      teamId,
       violatorId,
       ruleId,
       additionalAmount,

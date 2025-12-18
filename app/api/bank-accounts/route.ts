@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, getUserTeamId } from '@/utils/middleware';
-import { getExpensesByUser } from '@/controllers/ExpenseController';
+import {
+  addBankAccount,
+} from '@/controllers/BankAccountController';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
-) {
+export async function POST(req: NextRequest) {
   const auth = await withAuth(req);
   if (auth.error) {
     return NextResponse.json(
@@ -24,8 +23,26 @@ export async function GET(
       );
     }
 
-    const { userId } = await params;
-    const result = await getExpensesByUser(userId, teamId);
+    const body = await req.json();
+    const { userId, bankName, branch, accountNo, accountTitle, routingNumber } = body;
+
+    if (!userId || !bankName || !branch || !accountNo || !accountTitle || !routingNumber) {
+      return NextResponse.json(
+        { message: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await addBankAccount(
+      userId,
+      teamId,
+      auth.userId,
+      bankName,
+      branch,
+      accountNo,
+      accountTitle,
+      routingNumber
+    );
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(

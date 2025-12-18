@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, getUserTeamId } from '@/utils/middleware';
-import {
-  addPayment,
-  getAllPayments,
-} from '@/controllers/PaymentController';
+import { withAuth } from '@/utils/middleware';
+import { TeamController } from '@/controllers/TeamController';
+
+const teamController = new TeamController();
 
 export async function POST(req: NextRequest) {
   const auth = await withAuth(req);
@@ -15,26 +14,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Get user's current team
-    const teamId = await getUserTeamId(auth.userId);
-    if (!teamId) {
-      return NextResponse.json(
-        { message: 'No active team found' },
-        { status: 400 }
-      );
-    }
-
     const body = await req.json();
-    const { payedBy, amount, date, note } = body;
+    const { teamName, description } = body;
 
-    if (!payedBy || !amount) {
+    if (!teamName) {
       return NextResponse.json(
-        { message: 'payedBy and amount are required' },
+        { message: 'Team name is required' },
         { status: 400 }
       );
     }
 
-    const result = await addPayment(teamId, payedBy, amount, date, note);
+    const result = await teamController.createTeam(teamName, auth.userId, description);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(
@@ -54,16 +44,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get user's current team
-    const teamId = await getUserTeamId(auth.userId);
-    if (!teamId) {
-      return NextResponse.json(
-        { message: 'No active team found' },
-        { status: 400 }
-      );
-    }
-
-    const result = await getAllPayments(teamId);
+    const result = await teamController.getUserTeams(auth.userId);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(

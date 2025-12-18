@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPaymentDocument extends Document {
+  teamId: string;
   payedBy: string;
   amount: number;
   date: Date;
@@ -11,6 +12,11 @@ export interface IPaymentDocument extends Document {
 
 const paymentSchema = new Schema<IPaymentDocument>(
   {
+    teamId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     payedBy: {
       type: String,
       required: [true, 'Payer user ID is required'],

@@ -4,6 +4,7 @@ import User from '@/models/Users';
 
 export async function addExpense(
   userId: string,
+  teamId: string,
   amount: number,
   reason: string,
   date?: Date
@@ -31,6 +32,7 @@ export async function addExpense(
     }
 
     const expense = new Expense({
+      teamId,
       userId,
       amount,
       reason,
@@ -60,11 +62,11 @@ export async function addExpense(
   }
 }
 
-export async function getAllExpenses() {
+export async function getAllExpenses(teamId: string) {
   try {
     await connectDB();
 
-    const expenses = await Expense.find().lean();
+    const expenses = await Expense.find({ teamId }).lean();
 
     // Enrich with user data
     const enrichedExpenses = await Promise.all(
@@ -92,11 +94,11 @@ export async function getAllExpenses() {
   }
 }
 
-export async function getExpenseById(expenseId: string) {
+export async function getExpenseById(expenseId: string, teamId: string) {
   try {
     await connectDB();
 
-    const expense = await Expense.findById(expenseId).lean();
+    const expense = await Expense.findOne({ _id: expenseId, teamId }).lean();
     if (!expense) {
       return {
         success: false,
@@ -126,7 +128,7 @@ export async function getExpenseById(expenseId: string) {
   }
 }
 
-export async function getExpensesByUser(userId: string) {
+export async function getExpensesByUser(userId: string, teamId: string) {
   try {
     await connectDB();
 
@@ -140,7 +142,7 @@ export async function getExpensesByUser(userId: string) {
       };
     }
 
-    const expenses = await Expense.find({ userId }).lean();
+    const expenses = await Expense.find({ userId, teamId }).lean();
 
     // Enrich with user data
     const enrichedExpenses = await Promise.all(
@@ -170,6 +172,7 @@ export async function getExpensesByUser(userId: string) {
 
 export async function updateExpense(
   expenseId: string,
+  teamId: string,
   amount?: number,
   reason?: string,
   date?: Date
@@ -177,7 +180,7 @@ export async function updateExpense(
   try {
     await connectDB();
 
-    const expense = await Expense.findById(expenseId);
+    const expense = await Expense.findOne({ _id: expenseId, teamId });
     if (!expense) {
       return {
         success: false,
@@ -223,11 +226,11 @@ export async function updateExpense(
   }
 }
 
-export async function deleteExpense(expenseId: string) {
+export async function deleteExpense(expenseId: string, teamId: string) {
   try {
     await connectDB();
 
-    const expense = await Expense.findByIdAndDelete(expenseId).lean();
+    const expense = await Expense.findOneAndDelete({ _id: expenseId, teamId }).lean();
     if (!expense) {
       return {
         success: false,

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, getUserTeamId } from '@/utils/middleware';
-import { getExpensesByUser } from '@/controllers/ExpenseController';
+import { withAuth } from '@/utils/middleware';
+import { TeamController } from '@/controllers/TeamController';
+
+const teamController = new TeamController();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   const auth = await withAuth(req);
   if (auth.error) {
@@ -15,17 +17,8 @@ export async function GET(
   }
 
   try {
-    // Get user's current team
-    const teamId = await getUserTeamId(auth.userId);
-    if (!teamId) {
-      return NextResponse.json(
-        { message: 'No active team found' },
-        { status: 400 }
-      );
-    }
-
-    const { userId } = await params;
-    const result = await getExpensesByUser(userId, teamId);
+    const { teamId } = await params;
+    const result = await teamController.getTeamById(teamId);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(

@@ -11,6 +11,7 @@ export interface IUserDocument extends Document {
   isTeamLead: boolean;
   isActive: boolean;
   team?: string;
+  currentTeamId?: string;
   resetToken?: string;
   resetTokenExpiry?: Date;
   createdAt: Date;
@@ -64,6 +65,10 @@ const userSchema = new Schema<IUserDocument>(
       default: true,
     },
     team: {
+      type: String,
+      trim: true,
+    },
+    currentTeamId: {
       type: String,
       trim: true,
     },

@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IRuleViolationDocument extends Document {
+  teamId: string;
   violatorId: string;
   ruleId: string;
   additionalAmount: number;
@@ -13,6 +14,11 @@ export interface IRuleViolationDocument extends Document {
 
 const ruleViolationSchema = new Schema<IRuleViolationDocument>(
   {
+    teamId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     violatorId: {
       type: String,
       required: [true, 'Violator ID is required'],

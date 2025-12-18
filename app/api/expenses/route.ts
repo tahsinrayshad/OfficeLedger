@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/utils/middleware';
+import { withAuth, getUserTeamId } from '@/utils/middleware';
 import {
   addExpense,
   getAllExpenses,
@@ -15,6 +15,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { message: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const { userId, amount, reason, date } = body;
 
@@ -25,7 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await addExpense(userId, amount, reason, date);
+    const result = await addExpense(userId, teamId, amount, reason, date);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(
@@ -45,7 +54,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await getAllExpenses();
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { message: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
+    const result = await getAllExpenses(teamId);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(

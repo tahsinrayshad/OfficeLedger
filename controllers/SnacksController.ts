@@ -13,6 +13,7 @@ export class SnacksController {
    * Only food managers can add snacks
    * 
    * @param userId - User ID of the person adding the snack
+   * @param teamId - Team ID
    * @param foodItem - Name of the food item
    * @param expense - Total expense amount
    * @param contributions - Array of contributions with userId and amount
@@ -23,6 +24,7 @@ export class SnacksController {
    */
   async addSnacks(
     userId: string,
+    teamId: string,
     foodItem: string,
     expense: number,
     contributions: IContribution[],
@@ -33,7 +35,7 @@ export class SnacksController {
     await connectDB();
 
     // Check if user is a food manager
-    await this.checkFoodManagerPermission(userId);
+    await this.checkFoodManagerPermission(userId, teamId);
 
     // Validate inputs
     this.validateSnackInputs(foodItem, expense, contributions, date);
@@ -43,6 +45,7 @@ export class SnacksController {
 
     // Create new snack record
     const newSnack = await Snack.create({
+      teamId,
       foodItem,
       expense,
       contributions,
@@ -104,39 +107,44 @@ export class SnacksController {
   }
 
   /**
-   * Get all snacks
+   * Get all snacks for a team
    * 
-   * @returns Promise<ISnackDocument[]> - Array of all snacks
+   * @param teamId - Team ID
+   * @returns Promise<ISnackDocument[]> - Array of all snacks in team
    */
-  async getAllSnacks(): Promise<ISnackDocument[]> {
+  async getAllSnacks(teamId: string): Promise<ISnackDocument[]> {
     await connectDB();
-    return await Snack.find().sort({ date: -1 });
+    return await Snack.find({ teamId }).sort({ date: -1 });
   }
 
   /**
    * Get snack by ID
    * 
    * @param snackId - Snack ID to retrieve
+   * @param teamId - Team ID for verification
    * @returns Promise<ISnackDocument | null> - The snack object or null if not found
    */
-  async getSnackById(snackId: string): Promise<ISnackDocument | null> {
+  async getSnackById(snackId: string, teamId: string): Promise<ISnackDocument | null> {
     await connectDB();
-    return await Snack.findById(snackId);
+    return await Snack.findOne({ _id: snackId, teamId });
   }
 
   /**
    * Get snacks by date range
    * 
+   * @param teamId - Team ID
    * @param startDate - Start date for the range
    * @param endDate - End date for the range
    * @returns Promise<ISnackDocument[]> - Array of snacks within the date range
    */
   async getSnacksByDateRange(
+    teamId: string,
     startDate: Date,
     endDate: Date
   ): Promise<ISnackDocument[]> {
     await connectDB();
     return await Snack.find({
+      teamId,
       date: {
         $gte: startDate,
         $lte: endDate,
@@ -149,6 +157,7 @@ export class SnacksController {
    * Only food managers can update snacks
    * 
    * @param userId - User ID of the person updating the snack
+   * @param teamId - Team ID
    * @param snackId - Snack ID to update
    * @param updateData - Data to update
    * @returns Promise<ISnackDocument | null> - The updated snack object
@@ -156,15 +165,16 @@ export class SnacksController {
    */
   async updateSnack(
     userId: string,
+    teamId: string,
     snackId: string,
     updateData: Partial<ISnackDocument>
   ): Promise<ISnackDocument | null> {
     await connectDB();
 
     // Check if user is a food manager
-    await this.checkFoodManagerPermission(userId);
+    await this.checkFoodManagerPermission(userId, teamId);
 
-    return await Snack.findByIdAndUpdate(snackId, updateData, { new: true });
+    return await Snack.findOneAndUpdate({ _id: snackId, teamId }, updateData, { new: true });
   }
 
   /**
@@ -172,26 +182,28 @@ export class SnacksController {
    * Only food managers can delete snacks
    * 
    * @param userId - User ID of the person deleting the snack
+   * @param teamId - Team ID
    * @param snackId - Snack ID to delete
    * @returns Promise<ISnackDocument | null> - The deleted snack object
    * @throws Error if user is not a food manager
    */
-  async deleteSnack(userId: string, snackId: string): Promise<ISnackDocument | null> {
+  async deleteSnack(userId: string, teamId: string, snackId: string): Promise<ISnackDocument | null> {
     await connectDB();
 
     // Check if user is a food manager
-    await this.checkFoodManagerPermission(userId);
+    await this.checkFoodManagerPermission(userId, teamId);
 
-    return await Snack.findByIdAndDelete(snackId);
+    return await Snack.findOneAndDelete({ _id: snackId, teamId });
   }
 
   /**
-   * Check if user has food manager permission
+   * Check if user has food manager permission in team
    * 
    * @param userId - User ID to check
-   * @throws Error if user is not a food manager
+   * @param teamId - Team ID
+   * @throws Error if user is not a food manager in team
    */
-  private async checkFoodManagerPermission(userId: string): Promise<void> {
+  private async checkFoodManagerPermission(userId: string, teamId: string): Promise<void> {
     const user = await User.findById(userId);
 
     if (!user) {

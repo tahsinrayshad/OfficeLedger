@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/utils/middleware';
+import { withAuth, getUserTeamId } from '@/utils/middleware';
 import {
   getPaymentById,
   updatePayment,
@@ -19,8 +19,17 @@ export async function GET(
   }
 
   try {
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { message: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
-    const result = await getPaymentById(id);
+    const result = await getPaymentById(id, teamId);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(
@@ -43,11 +52,20 @@ export async function PUT(
   }
 
   try {
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { message: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
     const body = await req.json();
     const { amount, date, note } = body;
 
-    const result = await updatePayment(id, amount, date, note);
+    const result = await updatePayment(id, teamId, amount, date, note);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(
@@ -70,8 +88,17 @@ export async function DELETE(
   }
 
   try {
+    // Get user's current team
+    const teamId = await getUserTeamId(auth.userId);
+    if (!teamId) {
+      return NextResponse.json(
+        { message: 'No active team found' },
+        { status: 400 }
+      );
+    }
+
     const { id } = await params;
-    const result = await deletePayment(id);
+    const result = await deletePayment(id, teamId);
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {
     return NextResponse.json(

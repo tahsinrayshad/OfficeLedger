@@ -6,6 +6,7 @@ export interface IContribution {
 }
 
 export interface ISnackDocument extends Document {
+  teamId: string;
   contributions: IContribution[];
   totalContribution: number;
   foodItem: string;
@@ -33,6 +34,11 @@ const contributionSchema = new Schema<IContribution>(
 
 const snackSchema = new Schema<ISnackDocument>(
   {
+    teamId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     contributions: {
       type: [contributionSchema],
       default: [],

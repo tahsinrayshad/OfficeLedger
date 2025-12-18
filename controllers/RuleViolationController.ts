@@ -14,6 +14,7 @@ export class RuleViolationController {
    * Only fund managers can add violations
    * 
    * @param userId - User ID of the fund manager adding the violation
+   * @param teamId - Team ID for team-based data isolation
    * @param violatorId - User ID of the person who violated the rule
    * @param ruleId - ID of the rule that was violated
    * @param additionalAmount - Additional amount to charge
@@ -24,6 +25,7 @@ export class RuleViolationController {
    */
   async addViolation(
     userId: string,
+    teamId: string,
     violatorId: string,
     ruleId: string,
     additionalAmount: number,
@@ -34,13 +36,14 @@ export class RuleViolationController {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
     // Validate inputs
     this.validateViolationInputs(violatorId, ruleId, additionalAmount, date);
 
     // Create new violation record
     const newViolation = await RuleViolation.create({
+      teamId,
       violatorId,
       ruleId,
       additionalAmount,
@@ -87,44 +90,48 @@ export class RuleViolationController {
   /**
    * Get all rule violations
    * 
+   * @param teamId - Team ID for team-based data isolation
    * @returns Promise<IRuleViolationDocument[]> - Array of all violations
    */
-  async getAllViolations(): Promise<IRuleViolationDocument[]> {
+  async getAllViolations(teamId: string): Promise<IRuleViolationDocument[]> {
     await connectDB();
-    return await RuleViolation.find().sort({ createdAt: -1 });
+    return await RuleViolation.find({ teamId }).sort({ createdAt: -1 });
   }
 
   /**
    * Get violation by ID
    * 
    * @param violationId - Violation ID to retrieve
+   * @param teamId - Team ID for team-based data isolation
    * @returns Promise<IRuleViolationDocument | null> - The violation object or null if not found
    */
-  async getViolationById(violationId: string): Promise<IRuleViolationDocument | null> {
+  async getViolationById(violationId: string, teamId: string): Promise<IRuleViolationDocument | null> {
     await connectDB();
-    return await RuleViolation.findById(violationId);
+    return await RuleViolation.findOne({ _id: violationId, teamId });
   }
 
   /**
    * Get violations by violator ID
    * 
    * @param violatorId - Violator user ID
+   * @param teamId - Team ID for team-based data isolation
    * @returns Promise<IRuleViolationDocument[]> - Array of violations for the user
    */
-  async getViolationsByViolator(violatorId: string): Promise<IRuleViolationDocument[]> {
+  async getViolationsByViolator(violatorId: string, teamId: string): Promise<IRuleViolationDocument[]> {
     await connectDB();
-    return await RuleViolation.find({ violatorId }).sort({ createdAt: -1 });
+    return await RuleViolation.find({ violatorId, teamId }).sort({ createdAt: -1 });
   }
 
   /**
    * Get violations by rule ID
    * 
    * @param ruleId - Rule ID
+   * @param teamId - Team ID for team-based data isolation
    * @returns Promise<IRuleViolationDocument[]> - Array of violations for the rule
    */
-  async getViolationsByRule(ruleId: string): Promise<IRuleViolationDocument[]> {
+  async getViolationsByRule(ruleId: string, teamId: string): Promise<IRuleViolationDocument[]> {
     await connectDB();
-    return await RuleViolation.find({ ruleId }).sort({ createdAt: -1 });
+    return await RuleViolation.find({ ruleId, teamId }).sort({ createdAt: -1 });
   }
 
   /**
@@ -132,6 +139,7 @@ export class RuleViolationController {
    * Only fund managers can update violations
    * 
    * @param userId - User ID of the fund manager updating the violation
+   * @param teamId - Team ID for team-based data isolation
    * @param violationId - Violation ID to update
    * @param updateData - Data to update
    * @returns Promise<IRuleViolationDocument | null> - The updated violation object
@@ -139,13 +147,14 @@ export class RuleViolationController {
    */
   async updateViolation(
     userId: string,
+    teamId: string,
     violationId: string,
     updateData: Partial<IRuleViolationDocument>
   ): Promise<IRuleViolationDocument | null> {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
     // Validate inputs if violatorId, ruleId, or additionalAmount are being updated
     if (updateData.violatorId || updateData.ruleId || updateData.additionalAmount !== undefined) {
@@ -160,7 +169,7 @@ export class RuleViolationController {
     // Update the updatedBy field to current user
     updateData.updatedBy = userId;
 
-    return await RuleViolation.findByIdAndUpdate(violationId, updateData, { new: true });
+    return await RuleViolation.findOneAndUpdate({ _id: violationId, teamId }, updateData, { new: true });
   }
 
   /**
@@ -168,26 +177,28 @@ export class RuleViolationController {
    * Only fund managers can delete violations
    * 
    * @param userId - User ID of the fund manager deleting the violation
+   * @param teamId - Team ID for team-based data isolation
    * @param violationId - Violation ID to delete
    * @returns Promise<IRuleViolationDocument | null> - The deleted violation object
    * @throws Error if user is not a fund manager
    */
-  async deleteViolation(userId: string, violationId: string): Promise<IRuleViolationDocument | null> {
+  async deleteViolation(userId: string, teamId: string, violationId: string): Promise<IRuleViolationDocument | null> {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
-    return await RuleViolation.findByIdAndDelete(violationId);
+    return await RuleViolation.findOneAndDelete({ _id: violationId, teamId });
   }
 
   /**
    * Check if user has fund manager permission
    * 
    * @param userId - User ID to check
+   * @param teamId - Team ID for team-based permission check
    * @throws Error if user is not a fund manager
    */
-  private async checkFundManagerPermission(userId: string): Promise<void> {
+  private async checkFundManagerPermission(userId: string, teamId: string): Promise<void> {
     const user = await User.findById(userId);
 
     if (!user) {

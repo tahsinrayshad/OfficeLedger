@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/utils/auth';
+import User from '@/models/Users';
+import { connectDB } from '@/utils/db';
 
 /**
  * Middleware to verify JWT token
@@ -32,6 +34,19 @@ export async function withAuth(request: NextRequest) {
       status: 401,
       message: error.message || 'Invalid or expired token',
     };
+  }
+}
+
+/**
+ * Get user's current team ID
+ */
+export async function getUserTeamId(userId: string): Promise<string | null> {
+  try {
+    await connectDB();
+    const user = await User.findById(userId).select('currentTeamId');
+    return user?.currentTeamId || null;
+  } catch (error) {
+    return null;
   }
 }
 

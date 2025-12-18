@@ -4,6 +4,7 @@ import User from '@/models/Users';
 
 export async function addBankAccount(
   userId: string,
+  teamId: string,
   authUserId: string,
   bankName: string,
   branch: string,
@@ -34,17 +35,18 @@ export async function addBankAccount(
       };
     }
 
-    // Check if account already exists for user
-    const existingAccount = await BankAccount.findOne({ userId });
+    // Check if account already exists for user in this team
+    const existingAccount = await BankAccount.findOne({ userId, teamId });
     if (existingAccount) {
       return {
         success: false,
-        message: 'User already has a bank account registered',
+        message: 'User already has a bank account registered for this team',
         statusCode: 400,
       };
     }
 
     const bankAccount = new BankAccount({
+      teamId,
       userId,
       bankName,
       branch,
@@ -70,11 +72,11 @@ export async function addBankAccount(
   }
 }
 
-export async function getBankAccount(accountId: string) {
+export async function getBankAccount(accountId: string, teamId: string) {
   try {
     await connectDB();
 
-    const bankAccount = await BankAccount.findById(accountId).lean();
+    const bankAccount = await BankAccount.findOne({ _id: accountId, teamId }).lean();
     if (!bankAccount) {
       return {
         success: false,
@@ -100,6 +102,7 @@ export async function getBankAccount(accountId: string) {
 
 export async function updateBankAccount(
   accountId: string,
+  teamId: string,
   authUserId: string,
   bankName?: string,
   branch?: string,
@@ -119,7 +122,7 @@ export async function updateBankAccount(
       };
     }
 
-    const bankAccount = await BankAccount.findById(accountId);
+    const bankAccount = await BankAccount.findOne({ _id: accountId, teamId });
     if (!bankAccount) {
       return {
         success: false,
@@ -152,6 +155,7 @@ export async function updateBankAccount(
 
 export async function deleteBankAccount(
   accountId: string,
+  teamId: string,
   authUserId: string
 ) {
   try {
@@ -167,7 +171,7 @@ export async function deleteBankAccount(
       };
     }
 
-    const bankAccount = await BankAccount.findByIdAndDelete(accountId).lean();
+    const bankAccount = await BankAccount.findOneAndDelete({ _id: accountId, teamId }).lean();
     if (!bankAccount) {
       return {
         success: false,

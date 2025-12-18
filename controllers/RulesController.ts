@@ -13,6 +13,7 @@ export class RulesController {
    * Only fund managers can add rules
    * 
    * @param userId - User ID of the person adding the rule
+   * @param teamId - Team ID
    * @param title - Title of the rule
    * @param amount - Amount associated with the rule
    * @param description - Optional description of the rule
@@ -21,6 +22,7 @@ export class RulesController {
    */
   async addRule(
     userId: string,
+    teamId: string,
     title: string,
     amount: number,
     description?: string
@@ -29,13 +31,14 @@ export class RulesController {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
     // Validate inputs
     this.validateRuleInputs(title, amount);
 
     // Create new rule record
     const newRule = await Rules.create({
+      teamId,
       title,
       amount,
       description: description || '',
@@ -62,24 +65,26 @@ export class RulesController {
   }
 
   /**
-   * Get all rules
+   * Get all rules for team
    * 
-   * @returns Promise<IRulesDocument[]> - Array of all rules
+   * @param teamId - Team ID
+   * @returns Promise<IRulesDocument[]> - Array of all rules in team
    */
-  async getAllRules(): Promise<IRulesDocument[]> {
+  async getAllRules(teamId: string): Promise<IRulesDocument[]> {
     await connectDB();
-    return await Rules.find().sort({ createdAt: -1 });
+    return await Rules.find({ teamId }).sort({ createdAt: -1 });
   }
 
   /**
    * Get rule by ID
    * 
    * @param ruleId - Rule ID to retrieve
+   * @param teamId - Team ID for verification
    * @returns Promise<IRulesDocument | null> - The rule object or null if not found
    */
-  async getRuleById(ruleId: string): Promise<IRulesDocument | null> {
+  async getRuleById(ruleId: string, teamId: string): Promise<IRulesDocument | null> {
     await connectDB();
-    return await Rules.findById(ruleId);
+    return await Rules.findOne({ _id: ruleId, teamId });
   }
 
   /**
@@ -87,6 +92,7 @@ export class RulesController {
    * Only fund managers can update rules
    * 
    * @param userId - User ID of the person updating the rule
+   * @param teamId - Team ID
    * @param ruleId - Rule ID to update
    * @param updateData - Data to update
    * @returns Promise<IRulesDocument | null> - The updated rule object
@@ -94,13 +100,14 @@ export class RulesController {
    */
   async updateRule(
     userId: string,
+    teamId: string,
     ruleId: string,
     updateData: Partial<IRulesDocument>
   ): Promise<IRulesDocument | null> {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
     // Validate inputs if title or amount are being updated
     if (updateData.title || updateData.amount !== undefined) {
@@ -110,7 +117,7 @@ export class RulesController {
       );
     }
 
-    return await Rules.findByIdAndUpdate(ruleId, updateData, { new: true });
+    return await Rules.findOneAndUpdate({ _id: ruleId, teamId }, updateData, { new: true });
   }
 
   /**
@@ -118,26 +125,28 @@ export class RulesController {
    * Only fund managers can delete rules
    * 
    * @param userId - User ID of the person deleting the rule
+   * @param teamId - Team ID
    * @param ruleId - Rule ID to delete
    * @returns Promise<IRulesDocument | null> - The deleted rule object
    * @throws Error if user is not a fund manager
    */
-  async deleteRule(userId: string, ruleId: string): Promise<IRulesDocument | null> {
+  async deleteRule(userId: string, teamId: string, ruleId: string): Promise<IRulesDocument | null> {
     await connectDB();
 
     // Check if user is a fund manager
-    await this.checkFundManagerPermission(userId);
+    await this.checkFundManagerPermission(userId, teamId);
 
-    return await Rules.findByIdAndDelete(ruleId);
+    return await Rules.findOneAndDelete({ _id: ruleId, teamId });
   }
 
   /**
-   * Check if user has fund manager permission
+   * Check if user has fund manager permission in team
    * 
    * @param userId - User ID to check
+   * @param teamId - Team ID
    * @throws Error if user is not a fund manager
    */
-  private async checkFundManagerPermission(userId: string): Promise<void> {
+  private async checkFundManagerPermission(userId: string, teamId: string): Promise<void> {
     const user = await User.findById(userId);
 
     if (!user) {
