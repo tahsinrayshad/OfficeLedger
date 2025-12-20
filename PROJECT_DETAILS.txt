@@ -1,0 +1,731 @@
+================================================================================
+                            SNACKADOO PROJECT DETAILS
+================================================================================
+
+PROJECT NAME: Snackadoo
+DESCRIPTION: Multi-team snack tracking and fund management application
+VERSION: 1.0.0
+STATUS: Active Development
+LAST UPDATED: December 18, 2025
+
+================================================================================
+                              TECH STACK
+================================================================================
+
+FRONTEND:
+- Framework: Next.js 16.0.10
+- Language: TypeScript
+- Styling: CSS (Global styles)
+- Build Tool: Turbopack
+
+BACKEND:
+- Runtime: Node.js
+- Framework: Next.js 16 (API Routes)
+- Language: TypeScript
+
+DATABASE:
+- Database: MongoDB
+- ODM: Mongoose ^8.0.3
+
+AUTHENTICATION:
+- JWT: jsonwebtoken ^9.0.0
+- Password Hashing: bcrypt ^5.1.1
+
+================================================================================
+                            PROJECT STRUCTURE
+================================================================================
+
+e:\Project\Snackadoo\snackadoo\
+├── app/
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── signup/route.ts
+│   │   │   ├── signin/route.ts
+│   │   │   ├── me/route.ts
+│   │   │   ├── request-password-reset/route.ts
+│   │   │   └── reset-password/route.ts
+│   │   ├── teams/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   ├── [teamId]/route.ts
+│   │   │   ├── [teamId]/members/route.ts
+│   │   │   ├── [teamId]/members/[memberId]/route.ts
+│   │   │   └── [teamId]/switch/route.ts
+│   │   ├── snacks/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   ├── [id]/route.ts
+│   │   │   └── date-range/route.ts
+│   │   ├── rules/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   └── [id]/route.ts
+│   │   ├── rule-violations/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   ├── [id]/route.ts
+│   │   │   ├── violator/[violatorId]/route.ts
+│   │   │   └── rule/[ruleId]/route.ts
+│   │   ├── payments/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   ├── [id]/route.ts
+│   │   │   └── user/[userId]/route.ts
+│   │   ├── expenses/
+│   │   │   ├── route.ts (GET, POST)
+│   │   │   ├── [id]/route.ts
+│   │   │   └── user/[userId]/route.ts
+│   │   └── bank-accounts/
+│   │       ├── route.ts
+│   │       └── [id]/route.ts
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── controllers/
+│   ├── AuthController.ts
+│   ├── TeamController.ts
+│   ├── SnacksController.ts
+│   ├── RulesController.ts
+│   ├── RuleViolationController.ts
+│   ├── PaymentController.ts
+│   ├── ExpenseController.ts
+│   └── BankAccountController.ts
+├── models/
+│   ├── Users.ts
+│   ├── Team.ts
+│   ├── TeamMember.ts
+│   ├── Snacks.ts
+│   ├── Rules.ts
+│   ├── RuleViolation.ts
+│   ├── Payment.ts
+│   ├── Expense.ts
+│   └── BankAccount.ts
+├── utils/
+│   ├── db.ts (Database connection)
+│   ├── auth.ts (Password hashing, token generation)
+│   └── middleware.ts (JWT verification, team context)
+├── public/
+├── eslint.config.mjs
+├── next.config.ts
+├── tsconfig.json
+├── package.json
+├── postcss.config.mjs
+├── API_DOCUMENTATION.md
+└── README.md
+
+================================================================================
+                              DATA MODELS
+================================================================================
+
+1. USERS
+   Fields:
+   - _id: ObjectId (Primary Key)
+   - fullName: String (Required)
+   - email: String (Required, Unique)
+   - phone: String
+   - password: String (Hashed, select: false)
+   - dob: Date
+   - isFundManager: Boolean (default: false)
+   - isFoodManager: Boolean (default: false)
+   - isTeamLead: Boolean (default: false)
+   - isActive: Boolean (default: true)
+   - currentTeamId: ObjectId (User's active team)
+   - team: ObjectId (Legacy field)
+   - resetToken: String (Password reset token)
+   - resetTokenExpiry: Date
+   - createdAt: Date (Timestamp)
+   - updatedAt: Date (Timestamp)
+   
+   Indexes: email (unique)
+
+2. TEAMS
+   Fields:
+   - _id: ObjectId
+   - teamName: String (Required, Unique)
+   - description: String
+   - createdBy: ObjectId (User ID of creator)
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamName (unique)
+
+3. TEAM_MEMBERS
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required)
+   - userId: ObjectId (Required)
+   - isTeamLead: Boolean (default: false)
+   - isFundManager: Boolean (default: false)
+   - isFoodManager: Boolean (default: false)
+   - isActive: Boolean (default: true)
+   - joinedAt: Date
+   
+   Indexes: Compound (teamId, userId) - Unique
+
+4. SNACKS
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - contributions: Array
+     * userId: ObjectId
+     * amount: Number
+   - totalContribution: Number
+   - foodItem: String
+   - expense: Number
+   - note: String
+   - date: Date
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId
+
+5. RULES
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - title: String (Required)
+   - amount: Number (Penalty amount)
+   - description: String
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId (title is team-scoped, not globally unique)
+
+6. RULE_VIOLATIONS
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - violatorId: ObjectId (User who violated rule)
+   - ruleId: ObjectId
+   - additionalAmount: Number
+   - updatedBy: ObjectId (User who recorded violation)
+   - note: String
+   - date: Date
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId
+
+7. PAYMENTS
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - payedBy: ObjectId (User who made payment)
+   - amount: Number
+   - date: Date
+   - note: String
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId
+
+8. EXPENSES
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - userId: ObjectId (User who created expense)
+   - amount: Number
+   - reason: String
+   - date: Date
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId
+
+9. BANK_ACCOUNTS
+   Fields:
+   - _id: ObjectId
+   - teamId: ObjectId (Required, for team isolation)
+   - userId: ObjectId
+   - bankName: String
+   - branch: String
+   - accountNo: String (Unique per team)
+   - accountTitle: String
+   - routingNumber: String
+   - createdAt: Date
+   - updatedAt: Date
+   
+   Indexes: teamId
+
+================================================================================
+                             CONTROLLERS
+================================================================================
+
+1. AuthController.ts
+   Functions:
+   - signup(fullName, email, phone, password, dob, isFundManager, isFoodManager, isTeamLead)
+   - signin(email, password)
+   - updateUser(userId, targetUserId, updateData)
+   - getCurrentUser(userId)
+   - requestPasswordReset(email)
+   - resetPassword(email, resetToken, newPassword)
+
+2. TeamController.ts
+   Functions:
+   - createTeam(teamName, createdBy, description)
+   - getTeamById(teamId)
+   - getUserTeams(userId)
+   - addTeamMember(teamId, newUserId, requestingUserId)
+   - deactivateTeamMember(teamId, memberId, requestingUserId)
+   - assignRole(teamId, memberId, requestingUserId, roleData)
+   - switchTeam(userId, teamId)
+
+3. SnacksController.ts
+   Functions:
+   - addSnacks(userId, teamId, foodItem, expense, contributions, date, note)
+   - getAllSnacks(teamId)
+   - getSnackById(snackId, teamId)
+   - getSnacksByDateRange(teamId, startDate, endDate)
+   - updateSnack(userId, teamId, snackId, updateData)
+   - deleteSnack(userId, teamId, snackId)
+
+4. RulesController.ts
+   Functions:
+   - addRule(userId, teamId, title, amount, description)
+   - getAllRules(teamId)
+   - getRuleById(ruleId, teamId)
+   - updateRule(userId, teamId, ruleId, updateData)
+   - deleteRule(userId, teamId, ruleId)
+
+5. RuleViolationController.ts
+   Functions:
+   - addViolation(userId, teamId, violatorId, ruleId, additionalAmount, date, note)
+   - getAllViolations(teamId)
+   - getViolationById(violationId, teamId)
+   - getViolationsByViolator(violatorId, teamId)
+   - getViolationsByRule(ruleId, teamId)
+   - updateViolation(userId, teamId, violationId, updateData)
+   - deleteViolation(userId, teamId, violationId)
+
+6. PaymentController.ts
+   Functions:
+   - addPayment(teamId, payedBy, amount, date, note)
+   - getAllPayments(teamId)
+   - getPaymentById(paymentId, teamId)
+   - getPaymentsByUser(userId, teamId)
+   - updatePayment(paymentId, teamId, amount, date, note)
+   - deletePayment(paymentId, teamId)
+
+7. ExpenseController.ts
+   Functions:
+   - addExpense(userId, teamId, amount, reason, date)
+   - getAllExpenses(teamId)
+   - getExpenseById(expenseId, teamId)
+   - getExpensesByUser(userId, teamId)
+   - updateExpense(expenseId, teamId, amount, reason, date)
+   - deleteExpense(expenseId, teamId)
+
+8. BankAccountController.ts
+   Functions:
+   - addBankAccount(userId, teamId, authUserId, bankName, branch, accountNo, accountTitle, routingNumber)
+   - getBankAccount(accountId, teamId)
+   - updateBankAccount(accountId, teamId, authUserId, bankName, branch, accountTitle, routingNumber)
+   - deleteBankAccount(accountId, teamId, authUserId)
+
+================================================================================
+                           AUTHENTICATION SYSTEM
+================================================================================
+
+Authentication Method: JWT (JSON Web Tokens)
+Token Expiry: 7 days (default)
+Password Hashing: bcrypt with salt rounds: 10
+
+Auth Endpoints:
+1. POST /api/auth/signup - Create new user account
+2. POST /api/auth/signin - User login
+3. GET /api/auth/me - Get current authenticated user
+4. POST /api/auth/request-password-reset - Request password reset
+5. POST /api/auth/reset-password - Reset password using token
+
+Middleware:
+- withAuth() - Verifies JWT token and extracts userId
+- getUserTeamId() - Gets user's current active team
+
+Password Reset:
+- Reset token expires in 1 hour
+- Token sent via email (configured in resetPassword flow)
+
+================================================================================
+                          ROLE-BASED ACCESS CONTROL
+================================================================================
+
+User Roles:
+1. isTeamLead
+   - Can create/manage teams
+   - Can add/remove team members
+   - Can assign roles to team members
+   - Can deactivate members
+
+2. isFundManager
+   - Can add/update/delete rules
+   - Can add/update/delete rule violations
+   - Can add/update/delete bank accounts
+   - Can manage payments
+
+3. isFoodManager
+   - Can add/update/delete snacks
+   - Can manage snack contributions
+
+Permission Hierarchy:
+- Only TeamLead can: Add team members, deactivate members, assign roles
+- Only FundManager can: Add/modify rules, record violations, manage bank accounts
+- Only FoodManager can: Add/modify snacks
+- Fund managers can also update payments
+
+================================================================================
+                        TEAM-BASED DATA ISOLATION
+================================================================================
+
+Multi-Tenancy Model: Team-based
+User Context: Each user has currentTeamId field tracking active team
+
+Data Isolation Pattern:
+- All data models (except User/Team) include teamId field
+- All queries filter by { _id: recordId, teamId: userTeamId }
+- Users can only access data for their active team
+- Switching teams updates user.currentTeamId
+
+Team Operations:
+1. Create Team: Creator becomes team lead + fund manager + food manager
+2. Add Member: Team lead adds existing users to team
+3. Assign Roles: Team lead can assign individual roles
+4. Deactivate Member: Sets isActive to false (member can't modify data)
+5. Switch Team: User changes active team (must be active member)
+
+================================================================================
+                            API ENDPOINTS SUMMARY
+================================================================================
+
+TOTAL ENDPOINTS: 45+
+
+Authentication (5):
+- POST /api/auth/signup
+- POST /api/auth/signin
+- GET /api/auth/me
+- POST /api/auth/request-password-reset
+- POST /api/auth/reset-password
+
+Teams (6):
+- POST /api/teams (Create)
+- GET /api/teams (Get user's teams)
+- GET /api/teams/[teamId] (Get team details)
+- POST /api/teams/[teamId]/members (Add member)
+- PUT /api/teams/[teamId]/members/[memberId] (Manage member)
+- POST /api/teams/[teamId]/switch (Switch team)
+
+Snacks (6):
+- POST /api/snacks
+- GET /api/snacks
+- GET /api/snacks/[id]
+- GET /api/snacks/date-range
+- PUT /api/snacks/[id]
+- DELETE /api/snacks/[id]
+
+Rules (5):
+- POST /api/rules
+- GET /api/rules
+- GET /api/rules/[id]
+- PUT /api/rules/[id]
+- DELETE /api/rules/[id]
+
+Rule Violations (7):
+- POST /api/rule-violations
+- GET /api/rule-violations
+- GET /api/rule-violations/[id]
+- PUT /api/rule-violations/[id]
+- DELETE /api/rule-violations/[id]
+- GET /api/rule-violations/violator/[violatorId]
+- GET /api/rule-violations/rule/[ruleId]
+
+Payments (6):
+- POST /api/payments
+- GET /api/payments
+- GET /api/payments/[id]
+- GET /api/payments/user/[userId]
+- PUT /api/payments/[id]
+- DELETE /api/payments/[id]
+
+Expenses (6):
+- POST /api/expenses
+- GET /api/expenses
+- GET /api/expenses/[id]
+- GET /api/expenses/user/[userId]
+- PUT /api/expenses/[id]
+- DELETE /api/expenses/[id]
+
+Bank Accounts (4):
+- POST /api/bank-accounts
+- GET /api/bank-accounts/[id]
+- PUT /api/bank-accounts/[id]
+- DELETE /api/bank-accounts/[id]
+
+Users (1):
+- PUT /api/users/[id]
+
+================================================================================
+                            KEY FEATURES
+================================================================================
+
+1. Multi-Team Support
+   - Users can belong to multiple teams
+   - Each user has an active team context
+   - Data is strictly isolated by team
+   - Users can switch between teams
+
+2. Role-Based Access Control
+   - Three role types: TeamLead, FundManager, FoodManager
+   - Granular permission checks at controller level
+   - Role-based operation restrictions (add, update, delete)
+
+3. Snack Management
+   - Track snack contributions from team members
+   - Record food items and expenses
+   - Calculate total contributions
+   - Filter snacks by date range
+   - Multiple contributors per snack
+
+4. Rule Violations System
+   - Define team-specific snack violation rules
+   - Record violations with penalties
+   - Track violator and rule information
+   - Query violations by violator or rule
+
+5. Financial Tracking
+   - Record payments from team members
+   - Track team expenses
+   - Manage bank account information
+   - Fund manager exclusive features
+
+6. Team Management
+   - Create and manage teams
+   - Add/remove team members
+   - Assign roles to members
+   - Deactivate members (soft delete)
+   - Enrich team data with member details
+
+7. Authentication & Security
+   - JWT-based authentication
+   - Bcrypt password hashing (10 salt rounds)
+   - Password reset functionality
+   - Token expiration (7 days)
+   - Secure middleware verification
+
+8. Data Enrichment
+   - API responses include related user information
+   - Violation responses include violator and rule data
+   - Payment responses include payer details
+   - Member lists enriched with full user details
+
+================================================================================
+                         DATABASE SETUP
+================================================================================
+
+Database: MongoDB
+Connection: Mongoose with connection pooling
+
+Environment Variables Required:
+- MONGODB_URI=<your-mongodb-connection-string>
+- JWT_SECRET=<your-jwt-secret-key>
+- EMAIL_SERVICE=<email-service-provider>
+- EMAIL_USER=<sender-email>
+- EMAIL_PASSWORD=<email-password>
+
+Connection Caching:
+- Database connection is cached at module level
+- Prevents multiple connections in development
+- Automatic connection management
+
+================================================================================
+                           SETUP INSTRUCTIONS
+================================================================================
+
+1. Clone Repository
+   git clone <repository-url>
+   cd Snackadoo
+
+2. Install Dependencies
+   npm install
+
+3. Setup Environment Variables
+   Create .env.local file with:
+   - MONGODB_URI
+   - JWT_SECRET
+   - Email configuration
+
+4. Start Development Server
+   npm run dev
+   Server runs on http://localhost:3000
+
+5. Build for Production
+   npm run build
+   npm start
+
+6. Run Tests
+   npm test
+
+7. Linting
+   npm run lint
+
+================================================================================
+                          PROJECT STATISTICS
+================================================================================
+
+Models: 9
+Controllers: 8
+API Endpoints: 45+
+Database Indexes: 10+
+Authentication Methods: 1 (JWT)
+Role Types: 3 (TeamLead, FundManager, FoodManager)
+Teams per User: Multiple
+Data Isolation Level: Team-based (Multi-tenant)
+
+Total Lines of Code:
+- Models: ~800 lines
+- Controllers: ~2000+ lines
+- API Routes: ~1500+ lines
+- Utilities: ~300 lines
+
+================================================================================
+                          NOTABLE DESIGN DECISIONS
+================================================================================
+
+1. Team-Based Architecture
+   - Each user can belong to multiple teams
+   - Active team context tracked via currentTeamId
+   - Complete data isolation per team
+
+2. Mongoose Schema Design
+   - Separate TeamMember junction model for many-to-many relationship
+   - Compound unique index on (teamId, userId)
+   - All data models include teamId for isolation
+
+3. Controller-Based Pattern
+   - Business logic separated from routes
+   - Functions return standardized response format
+   - Centralized error handling
+
+4. Role-Based Permission Checks
+   - Permissions checked at controller level
+   - Granular role assignments per team member
+   - Hierarchical permission model
+
+5. Soft Deletion
+   - Team members deactivated rather than deleted
+   - Historical data remains accessible
+   - isActive flag controls access
+
+6. API Response Enrichment
+   - Fetch related data in controllers
+   - Return combined response with enriched information
+   - Reduces frontend API calls
+
+7. Password Reset
+   - Token-based reset with expiration
+   - Secure token generation
+   - Email notification system
+
+================================================================================
+                          DEVELOPMENT ROADMAP
+================================================================================
+
+Completed Features:
+✓ User authentication (signup, signin, password reset)
+✓ Team management system
+✓ Multi-team support with data isolation
+✓ Role-based access control
+✓ Snack tracking and management
+✓ Rule violation system
+✓ Payment tracking
+✓ Expense management
+✓ Bank account management
+✓ Team member management
+
+Potential Future Features:
+- [ ] Analytics dashboard
+- [ ] Report generation
+- [ ] Batch operations
+- [ ] API rate limiting
+- [ ] Email notifications
+- [ ] File upload/attachments
+- [ ] Audit logging
+- [ ] Advanced search and filters
+- [ ] Mobile app version
+- [ ] Real-time notifications
+- [ ] Payment integrations
+- [ ] Export to CSV/PDF
+- [ ] Two-factor authentication
+- [ ] OAuth integration
+- [ ] Webhook support
+
+================================================================================
+                            TROUBLESHOOTING
+================================================================================
+
+Common Issues:
+
+1. Database Connection Failed
+   - Check MONGODB_URI in .env.local
+   - Verify MongoDB is running
+   - Check network connectivity
+
+2. JWT Token Expired
+   - Users need to sign in again
+   - Token expires after 7 days
+   - New token issued on signin
+
+3. No Active Team Error
+   - User must create or join a team first
+   - User must switch to active team
+   - currentTeamId must be set
+
+4. Permission Denied Errors
+   - Verify user has required role
+   - Check user is active member of team
+   - Admin may need to assign roles
+
+5. Data Not Found Errors
+   - Verify teamId matches active team
+   - Check if record exists for this team
+   - Verify user has access rights
+
+================================================================================
+                        DEVELOPMENT TEAM NOTES
+================================================================================
+
+Code Style:
+- TypeScript for type safety
+- CamelCase for variables and functions
+- PascalCase for classes and models
+- Consistent error handling and responses
+
+Testing Approach:
+- Manual testing via API endpoints
+- Postman collection available (API_DOCUMENTATION.md)
+- Test with multiple users and teams
+
+Deployment Considerations:
+- Use environment variables for secrets
+- Set NODE_ENV=production
+- Enable compression middleware
+- Setup CORS appropriately
+- Configure MongoDB Atlas for production
+- Use strong JWT_SECRET
+
+Performance Notes:
+- Database indexes on frequently queried fields
+- Connection pooling for database
+- Lean queries for read-only operations
+- Pagination not yet implemented (future feature)
+
+================================================================================
+                      CONTACT & SUPPORT
+================================================================================
+
+Project Owner: Snackadoo Team
+Last Updated: December 18, 2025
+Status: Active Development
+Version: 1.0.0
+
+For questions or issues, please refer to:
+- API_DOCUMENTATION.md - Complete API reference
+- README.md - Project overview
+- Individual controller files for function details
+
+================================================================================
+                              END OF FILE
+================================================================================
